@@ -1,10 +1,9 @@
 
-using Microsoft.AspNetCore.Mvc;
 using ProcessadorTarefasWebAPI.Entities.Interfaces;
 using ProcessadorTarefasWebAPI.Entities;
-using ProcessadorTarefasWebAPI.Services;
 using ProcessadorTarefasWebAPI.Services.Interfaces;
 using ProcessadorTarefasWebAPI.Repository;
+using ProcessadorTarefasWebAPI.Services;
 using Microsoft.Extensions.Configuration;
 
 namespace ProcessadorTarefasWebAPI
@@ -16,13 +15,18 @@ namespace ProcessadorTarefasWebAPI
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.AddControllers();
-            builder.Services.AddSingleton<IRepository<Tarefa>, ProcessadorTarefasRepository>();
-            builder.Services.Configure<ConfigOptions>(builder.Configuration.GetSection("options"));
 
-            //builder.Services.AddOptions<ConfigOptions>()
-            //    .Bind(builder.Configuration.GetSection(ConfigOptions.options)).ValidateDataAnnotations();
-            builder.Services.AddScoped<IGerenciadorTarefas, GerenciadorTarefas>();
-            builder.Services.AddScoped<IProcessadorTarefas, ProcessadorTarefas>();
+            string basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string configurationPath = Path.Combine(basePath, "AppSettings.json").Replace("\\bin\\Debug\\net8.0", "");
+
+            IConfiguration config = new ConfigurationBuilder()
+                .AddJsonFile(configurationPath, optional: true, reloadOnChange: true)
+                .Build();
+
+            builder.Services.AddSingleton<IConfiguration>(_ => config);
+            builder.Services.AddSingleton<IRepository<Tarefa>, ProcessadorTarefasRepository>();
+            builder.Services.AddSingleton<IGerenciadorTarefas, GerenciadorTarefas>();
+            builder.Services.AddSingleton<IProcessadorTarefas, ProcessadorTarefas>();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
@@ -42,5 +46,6 @@ namespace ProcessadorTarefasWebAPI
 
             app.Run();
         }
+
     }
 }

@@ -1,11 +1,10 @@
 ﻿using ProcessadorTarefasWebAPI.Entities.Interfaces;
 using ProcessadorTarefasWebAPI.Entities;
 using ProcessadorTarefasWebAPI.Services.Interfaces;
-using Microsoft.Extensions.Options;
 
 namespace ProcessadorTarefasWebAPI.Services
 {
-    internal class GerenciadorTarefas : IGerenciadorTarefas
+    public class GerenciadorTarefas : IGerenciadorTarefas
     {
         private static int ContadorId = 0;
         private readonly IRepository<Tarefa> _repository;
@@ -15,81 +14,63 @@ namespace ProcessadorTarefasWebAPI.Services
         private readonly int _tempoMinimoExecucaoSubtarefa;
         private readonly int _tempoMaximoExecucaoSubtarefa;
 
-        public GerenciadorTarefas(IRepository<Tarefa> repository, IOptionsSnapshot<ConfigOptions> configOptions)
+        public GerenciadorTarefas(IRepository<Tarefa> repository, IConfiguration config)
         {
             _repository = repository;
-            _quantidadeTarefasEstaticas = configOptions.Value.QuantidadeTarefasEstaticas;
-            _quantidadeMinimaSubtarefas = configOptions.Value.QuantidadeMinimaSubtarefas;
-            _quantidadeMaximaSubtarefas = configOptions.Value.QuantidadeMaximaSubtarefas;
-            _tempoMinimoExecucaoSubtarefa = configOptions.Value.TempoMinimoExecucaoSubtarefa;
-            _tempoMaximoExecucaoSubtarefa = configOptions.Value.TempoMaximoExecucaoSubtarefa;
+            _quantidadeTarefasEstaticas = int.Parse(config["Options:QuantidadeTarefasEstaticas"]);
+            _quantidadeMinimaSubtarefas = int.Parse(config["Options:QuantidadeMinimaSubtarefas"]);
+            _quantidadeMaximaSubtarefas = int.Parse(config["Options:QuantidadeMaximaSubtarefas"]);
+            _tempoMinimoExecucaoSubtarefa = int.Parse(config["Options:TempoMinimoExecucaoSubtarefa"]);
+            _tempoMaximoExecucaoSubtarefa = int.Parse(config["Options:TempoMaximoExecucaoSubtarefa"]);
 
-            if (!_repository.GetAll().Any())
-            {
-                for (int i = 0; i < _quantidadeTarefasEstaticas; i++)
-                    CriarTarefa();
-            }
+            for (int i = 0; i < _quantidadeTarefasEstaticas; i++)
+                CriarTarefa();
         }
 
         public Task<Tarefa> CriarTarefa()
         {
-            var tarefa = new Tarefa()
-            {
-                Id = ContadorId++,
-                Estado = (int)EstadoTarefa.Criada,
-                IniciadaEm = default,
-                EncerradaEm = default,
-                SubtarefasExecutadas = new List<Subtarefa>(),
-                SubtarefasPendentes = CriarSubtarefas(),
-            };
+            var tarefaCriada = new Tarefa(ContadorId++, EstadoTarefa.Criada,
+                default, default, CriarSubtarefas(), new List<Subtarefa>());
 
-            _repository.Add(tarefa);
+            _repository.Add(tarefaCriada);
 
-            return Task.FromResult(tarefa);
+            return Task.FromResult(tarefaCriada);
         }
 
-        public Task Cancelar(int idTarefa)
+        public async Task CancelarTarefaCriadaOuAgendada(int idTarefa)
         {
             var tarefa = _repository.GetById(idTarefa);
             if (tarefa!.Estado == EstadoTarefa.Criada ||
                 tarefa.Estado == EstadoTarefa.Agendada)
             {
-                Tarefa tarefaCancelada = new()
-                {
-                    Id = idTarefa,
-                    IniciadaEm = default,
-                    EncerradaEm = DateTime.Now,
-                    Estado = EstadoTarefa.Cancelada,
-                    SubtarefasExecutadas = tarefa.SubtarefasExecutadas,
-                    SubtarefasPendentes = tarefa.SubtarefasPendentes
-                };
+                if (tarefa.IniciadaEm == default)
+                    tarefa.IniciadaEm = DateTime.Now;
+                tarefa.EncerradaEm = DateTime.Now;
+                tarefa.Estado = EstadoTarefa.Cancelada;
 
-                _repository.Update(tarefaCancelada);
+                _repository.Update(tarefa);
 
-                return Task.FromResult(tarefaCancelada);
+                Task.FromResult(tarefa);
             }
             else
-            {
-                throw new ArgumentException("Não é possível cancelar uma tarefa que não tenha sido criada ou agendada.");
-            }
+                Console.WriteLine("Não é possível cancelar uma tarefa que não tenha sido criada ou agendada.");
         }
 
         public Task<Tarefa> Consultar(int idTarefa)
         {
-            var taskModel = _repository.GetById(idTarefa);
-            return Task.FromResult(taskModel)!;
+            var tarefa = _repository.GetById(idTarefa);
+            return Task.FromResult(tarefa);
         }
 
         public IEnumerable<Subtarefa> CriarSubtarefas()
         {
             List<Subtarefa> subtasks = new();
-            
             int quantidadeTarefas = new Random().Next(_quantidadeMinimaSubtarefas, _quantidadeMaximaSubtarefas);
 
             for (int i = 0; i < quantidadeTarefas; i++)
             {
                 int duracao = new Random().Next(_tempoMinimoExecucaoSubtarefa, _tempoMaximoExecucaoSubtarefa);
-                Subtarefa novaSubtask = new Subtarefa(TimeSpan.FromSeconds(duracao));
+                Subtarefa novaSubtask = new(TimeSpan.FromSeconds(duracao));
                 subtasks.Add(novaSubtask);
             }
 
@@ -98,14 +79,14 @@ namespace ProcessadorTarefasWebAPI.Services
 
         public Task<IEnumerable<Tarefa>> ListarAtivas()
         {
-            var tasks = _repository.GetAll().Where(t => t.Estado != EstadoTarefa.Cancelada && t.Estado != EstadoTarefa.Concluida);
-            return Task.FromResult(tasks);
+            var tarefas = _repository.GetAll().Where(t => t.Estado != EstadoTarefa.Cancelada && t.Estado != EstadoTarefa.Concluida);
+            return Task.FromResult(tarefas);
         }
 
         public Task<IEnumerable<Tarefa>> ListarInativas()
         {
-            var tasks = _repository.GetAll().Where(t => t.Estado == EstadoTarefa.Cancelada || t.Estado == EstadoTarefa.Concluida);
-            return Task.FromResult(tasks);
+            var tarefas = _repository.GetAll().Where(t => t.Estado == EstadoTarefa.Cancelada || t.Estado == EstadoTarefa.Concluida);
+            return Task.FromResult(tarefas);
         }
     }
 }

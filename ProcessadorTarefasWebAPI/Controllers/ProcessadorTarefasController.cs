@@ -37,7 +37,7 @@ namespace ProcessadorTarefasWebAPI.Controllers
         {
             try
             {
-                await _gerenciadorTarefas.Cancelar(id);
+                await _gerenciadorTarefas.CancelarTarefaCriadaOuAgendada(id);
                 return Ok("Tarefa cancelada com sucesso!");
             }
             catch (Exception ex)
@@ -48,12 +48,12 @@ namespace ProcessadorTarefasWebAPI.Controllers
 
 
 
-        [HttpGet("CancelarTarefasEmExecucao/{id}", Name = "Cancelar tarefa em execução")]
-        public async Task<IActionResult> CancelarTarefasEmExecucao(int id)
+        [HttpGet("CancelarTarefasEmExecucao", Name = "Cancelar tarefas em execução")]
+        public async Task<IActionResult> CancelarTarefasEmExecucao()
         {
             try
             {
-                await _processadorTarefas.CancelarTarefa(id);
+                _processadorTarefas.CancelarTarefasEmExecucao();
                 return Ok("Tarefa em execução cancelada com sucesso.");
             }
             catch (Exception ex)

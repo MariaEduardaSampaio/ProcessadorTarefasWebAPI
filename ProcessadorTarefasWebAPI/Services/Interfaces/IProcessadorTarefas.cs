@@ -6,7 +6,10 @@ namespace ProcessadorTarefasWebAPI.Services.Interfaces
     {
         Task ProcessarTarefas();
         Task IniciarTarefa(Tarefa tarefa);
-        Task CancelarTarefa(int idTarefa);
+        Task ImprimirTarefas();
+        void ImprimirTarefa(Tarefa tarefa);
+        void CancelarTarefasEmExecucao();
         Task Encerrar();
+        Task AgendarTarefas();
     }
 }

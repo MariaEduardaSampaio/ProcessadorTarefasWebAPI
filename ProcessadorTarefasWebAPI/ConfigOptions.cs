@@ -6,8 +6,6 @@ namespace ProcessadorTarefasWebAPI
 {
     public class ConfigOptions
     {
-        public const string options = "options";
-
         [Required(ErrorMessage = "O campo 'TempoMinimoExecucaoSubtarefa' é obrigatório.")]
         [DisallowNull]
         [MinLength(1, ErrorMessage = "O campo deve ser no mínimo 1.")]
